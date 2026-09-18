@@ -1,1 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <title>Feliz aniversário ❤️</title>
 
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #22000c 0%, #0a0005 55%, #000 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      position: relative;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      background: rgba(0, 0, 0, 0.18);
+      transition: opacity 0.8s ease;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .touch-box {
+      padding: 18px 28px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      font-size: clamp(22px, 6vw, 34px);
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-align: center;
+      box-shadow: 0 0 30px rgba(255, 50, 100, 0.12);
+      animation: pulseBox 1.7s ease-in-out infinite;
+    }
+
+    @keyframes pulseBox {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 25px rgba(255, 50, 100, 0.10);
+      }
+      50% {
+        transform: scale(1.03);
+        box-shadow: 0 0 40px rgba(255, 50, 100, 0.22);
+      }
+    }
+
+    .message {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 4;
+      text-align: center;
+      color: white;
+      opacity: 0;
+      transition: opacity 1.5s ease, transform 1.5s ease;
+      pointer-events: none;
+      width: 90%;
+    }
+
+    .message.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .message h1 {
+      font-size: clamp(30px, 8vw, 52px);
+      font-weight: 600;
+      line-height: 1.15;
+      text-shadow:
+        0 0 10px rgba(255, 70, 120, 0.95),
+        0 0 24px rgba(255, 40, 95, 0.85),
+        0 0 45px rgba(255, 10, 80, 0.55);
+    }
+
+    .message .sub {
+      margin-top: 12px;
+      font-size: clamp(14px, 3.8vw, 18px);
+      opacity: 0.85;
+      letter-spacing: 1.5px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div class="overlay" id="overlay">
+    <div class="touch-box">Toque na tela</div>
+  </div>
+
+  <div class="message" id="message">
+    <h1>Feliz aniversário meu amor ❤️</h1>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const overlay = document.getElementById("overlay");
+    const message = document.getElementById("message");
+
+    let width = 0;
+    let height = 0;
+    let particles = [];
+    let animationStarted = false;
+    let startedAt = 0;
+
+    function resizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      width = window.innerWidth;
+      height = window.innerHeight;
+
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      if (animationStarted) {
+        createHeartParticles();
+      }
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+
+    function heartPoint(t) {
+      const x = 16 * Math.pow(Math.sin(t), 3);
+      const y =
+        13 * Math.cos(t) -
+        5 * Math.cos(2 * t) -
+        2 * Math.cos(3 * t) -
+        Math.cos(4 * t);
+
+      return { x, y };
+    }
+
+    class Particle {
+      constructor(targetX, targetY) {
+        this.reset(targetX, targetY);
+      }
+
+      reset(targetX, targetY) {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.baseX = targetX;
+        this.baseY = targetY;
+        this.tx = targetX;
+        this.ty = targetY;
+        this.size = Math.random() * 2.3 + 0.8;
+        this.speed = Math.random() * 0.05 + 0.02;
+        this.alpha = Math.random() * 0.5 + 0.45;
+        this.offset = Math.random() * Math.PI * 2;
+        this.drawX = this.x;
+        this.drawY = this.y;
+      }
+
+      update(time, pulseScale) {
+        const cx = width / 2;
+        const cy = height / 2;
+
+        this.tx = cx + (this.baseX - cx) * pulseScale;
+        this.ty = cy + (this.baseY - cy) * pulseScale;
+
+        this.x += (this.tx - this.x) * this.speed;
+        this.y += (this.ty - this.y) * this.speed;
+
+        const floatX = Math.cos(time * 0.0015 + this.offset) * 0.4;
+        const floatY = Math.sin(time * 0.0018 + this.offset) * 0.4;
+
+        this.drawX = this.x + floatX;
+        this.drawY = this.y + floatY;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.drawX, this.drawY, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 40, 95, ${this.alpha})`;
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = "rgba(255, 30, 90, 0.9)";
+        ctx.fill();
+      }
+    }
+
+    function createHeartParticles() {
+      particles = [];
+
+      const count = width < 600 ? 1000 : 1400;
+      const scale = Math.min(width, height) / 42;
+
+      for (let i = 0; i < count; i++) {
+        const t = Math.random() * Math.PI * 2;
+        const p = heartPoint(t);
+
+        const fill = Math.sqrt(Math.random());
+
+        const x = width / 2 + p.x * scale * fill;
+        const y = height / 2 - p.y * scale * fill;
+
+        particles.push(new Particle(x, y));
+      }
+    }
+
+    function drawBackgroundGlow() {
+      const gradient = ctx.createRadialGradient(
+        width / 2, height / 2, 0,
+        width / 2, height / 2, Math.min(width, height) * 0.55
+      );
+
+      gradient.addColorStop(0, "rgba(255, 0, 80, 0.10)");
+      gradient.addColorStop(0.45, "rgba(255, 0, 80, 0.03)");
+      gradient.addColorStop(1, "rgba(255, 0, 80, 0)");
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function animate(time) {
+      ctx.clearRect(0, 0, width, height);
+      drawBackgroundGlow();
+
+      if (animationStarted) {
+        const elapsed = time - startedAt;
+        const pulse = 1 + Math.sin(elapsed * 0.0032) * 0.025;
+
+        for (const particle of particles) {
+          particle.update(time, pulse);
+          particle.draw();
+        }
+      }
+
+      ctx.shadowBlur = 0;
+      requestAnimationFrame(animate);
+    }
+
+    function startExperience() {
+      if (animationStarted) return;
+
+      animationStarted = true;
+      startedAt = performance.now();
+
+      overlay.classList.add("hidden");
+      createHeartParticles();
+
+      setTimeout(() => {
+        message.classList.add("show");
+      }, 1200);
+    }
+
+    overlay.addEventListener("click", startExperience);
+    overlay.addEventListener("touchstart", startExperience, { passive: true });
+
+    resizeCanvas();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
